@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: ${ERP_DB_PASSWORD:?Set ERP_DB_PASSWORD to a unique hexadecimal password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis-data:/data
+
+  backend:
+    build: ./backend
+    environment:
+      SQL_DB_URL: postgresql+asyncpg://erp:${ERP_DB_PASSWORD:?Set ERP_DB_PASSWORD}@db:5432/erp
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${ERP_SECRET_KEY:?Set ERP_SECRET_KEY to a unique signing key}
+      DEBUG: "false"
+      ALLOW_ORIGINS: '[]'
+      ALLOW_CREDENTIALS: "false"
+    volumes:
+      - avatar-data:/app/app/static/avatar
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    ports:
+      - "${ERP_BIND_ADDRESS:-127.0.0.1}:${ERP_PORT:-5180}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
+  redis-data:
+  avatar-data:
