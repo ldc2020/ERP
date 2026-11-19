@@ -20,7 +20,7 @@
                 @finish="onFinish"
               >
                 <a-form-item name="username" :rules="[{ required: true, message: '用户名是必填项！' }]">
-                  <a-input v-model:value="loginForm.username" placeholder="用户名: senqi or test">
+                  <a-input v-model:value="loginForm.username" placeholder="用户名" autocomplete="username">
                     <template #prefix>
                       <UserOutlined class="site-form-item-icon" />
                     </template>
@@ -28,7 +28,7 @@
                 </a-form-item>
 
                 <a-form-item name="password" :rules="[{ required: true, message: '密码是必填项！' }]">
-                  <a-input-password v-model:value="loginForm.password" placeholder="密码: gitee 或 github 查看">
+                  <a-input-password v-model:value="loginForm.password" placeholder="密码" autocomplete="current-password">
                     <template #prefix>
                       <LockOutlined class="site-form-item-icon" />
                     </template>
@@ -95,7 +95,6 @@ import { UserOutlined, LockOutlined, GithubOutlined } from '@ant-design/icons-vu
 import { login, getCaptcha } from "@/api/auth"
 import type { loginFormType, captchaStateType } from './types';
 import { save_token } from "@/utils/util"
-import md5 from "md5"
 
 const router = useRouter()
 const loginFlag = ref(false);
@@ -130,9 +129,7 @@ const captchaState = reactive<captchaStateType>({
 const onFinish = (values: loginFormType) => {
   loginFlag.value = true;
 
-  values.password = md5(values.password);
-  values.captcha_key = captchaState.key;
-  login(values).then(response => {
+  login({ ...values, captcha_key: captchaState.key }).then(response => {
     let result = response.data;
     if (result.code === 200) {
       save_token(result.data.access_token, result.data.refresh_token, result.data.expires_in)
@@ -142,7 +139,7 @@ const onFinish = (values: loginFormType) => {
       loginFlag.value = false;
     }
   }).catch(error => {
-    if (error.data.code === 410) {
+    if ((error.response?.data ?? error.data)?.code === 410) {
       requestCaptcha();
     }
     loginFlag.value = false;

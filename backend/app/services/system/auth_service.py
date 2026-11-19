@@ -5,10 +5,11 @@ from typing import NewType, Dict, Union
 import string, random, base64
 from app.core.security import (
     CustomOAuth2PasswordRequestForm,
-    verify_password,
+    verify_password_and_upgrade,
     create_jwt_token,
     decode_jwt_token
 )
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import CustomException
 from redis.asyncio import Redis
@@ -44,7 +45,8 @@ class LoginService:
         auth = Auth(session=session)
 
         user = await UserCRUD(auth).get_by_username(login_form.username)
-        if not verify_password(login_form.password, user.password):
+        valid, upgraded_hash = verify_password_and_upgrade(login_form.password, user.password)
+        if not valid:
             raise CustomException(
                 msg="密码错误",
                 code=status.HTTP_401_UNAUTHORIZED
@@ -55,6 +57,17 @@ class LoginService:
                 msg="用户已被停用",
                 code=status.HTTP_403_FORBIDDEN
             )
+
+        if upgraded_hash:
+            migrated_id = await session.scalar(
+                update(UserModel)
+                .where(UserModel.id == user.id, UserModel.password == user.password)
+                .values(password=upgraded_hash)
+                .returning(UserModel.id)
+            )
+            if migrated_id is None:
+                raise CustomException(msg="账号信息已更改，请重新登录", code=401, status_code=401)
+            user.password = upgraded_hash
 
         user = await UserCRUD(auth).update_last_login(user.id)
         return user

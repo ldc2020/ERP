@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile
 from app.crud.system import UserCRUD, MenuCRUD, DeptCRUD
 from app.models.system import OperationLogModel, UserModel
 from sqlalchemy import select
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password_and_upgrade
 from app.core.exceptions import CustomException
 from app.utils.tools import upload_image
 from app.schemas.system import (
@@ -166,7 +166,8 @@ class UserService:
             raise CustomException(msg='非法参数')
 
         user = await UserCRUD(auth).get_by_id(auth.user.id)
-        if not verify_password(data.old_password, user.password):
+        valid, _ = verify_password_and_upgrade(data.old_password, user.password)
+        if not valid:
             raise CustomException(msg='原密码输入错误')
 
         new_password_hash = get_password_hash(data.new_password)

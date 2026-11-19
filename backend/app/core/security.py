@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 from app.core.config import settings
 from app.schemas.system import JWTPayload
 from app.core.exceptions import CustomException
+import hashlib
 import jwt
 
 
@@ -65,6 +66,18 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return PwdContext.verify(plain_password, hashed_password)
+
+
+def verify_password_and_upgrade(password: str, stored_hash: str) -> tuple[bool, Optional[str]]:
+    if verify_password(password, stored_hash):
+        return True, None
+
+    # Earlier browser clients submitted MD5 before the server applied bcrypt.
+    legacy_password = hashlib.md5(password.encode("utf-8")).hexdigest()
+    if verify_password(legacy_password, stored_hash):
+        return True, get_password_hash(password)
+
+    return False, None
 
 
 def create_jwt_token(payload: JWTPayload) -> str:

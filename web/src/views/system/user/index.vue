@@ -255,7 +255,6 @@ import { isEmpty, listToTree } from '@/utils/util';
 import { PlusOutlined, DownOutlined, CheckOutlined, StopOutlined, SearchOutlined } from '@ant-design/icons-vue';
 import type { TableColumnsType, MenuProps } from 'ant-design-vue';
 import type { searchDataType, tableDataType, deptTreeType, roleSelectorType, positionSelectorType } from './types'
-import md5 from "md5"
 import SelectorModal from './SelectorModal.vue'
 
 const tableLoading = ref(false);
@@ -501,7 +500,7 @@ const handleModalSumbit = () => {
   } else if (modalTitle.value === 'create') {
     createForm.value.validate().then(() => {
       const createBody = {
-        username: createState.username, name: createState.name, password : md5(createState.password),
+        username: createState.username, name: createState.name, password : createState.password,
         dept_id: createState.dept_id, role_ids: createState.role_ids,
         position_ids: createState.position_ids, gender: createState.gender,
         email: createState.email, mobile: createState.mobile, available: createState.available,
@@ -540,7 +539,7 @@ const handleModalSumbit = () => {
         description: updateState.description, is_superuser: updateState.is_superuser
       }
       if (showPasswordInput.value && updateState.password) {
-        updateBody['password'] = md5(updateState.password);
+        updateBody['password'] = updateState.password;
       }
 
       updateUser(updateBody).then(response => {

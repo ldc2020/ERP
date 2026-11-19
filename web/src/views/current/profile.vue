@@ -99,7 +99,6 @@ import { UploadOutlined } from '@ant-design/icons-vue';
 import store from '@/store'
 import storage from 'store'
 import request from "@/utils/axios"
-import md5 from "md5"
 import { updateCurrentUserInfo, changeCurrentUserPassword } from '@/api/user'
 
 
@@ -149,7 +148,7 @@ export default {
 
       passwordChanging.value = true;
 
-      const data = { old_password: md5(values.oldPassword), new_password: md5(values.newPassword) };
+      const data = { old_password: values.oldPassword, new_password: values.newPassword };
       changeCurrentUserPassword(data).then(response => {
         const result = response.data;
         passwordChanging.value = false;
