@@ -97,7 +97,7 @@ import { message } from 'ant-design-vue';
 import type { MenuProps, UploadChangeParam } from "ant-design-vue";
 import { UploadOutlined } from '@ant-design/icons-vue';
 import store from '@/store'
-import storage from 'store'
+import storage from '@/auth/storage'
 import request from "@/utils/axios"
 import { updateCurrentUserInfo, changeCurrentUserPassword } from '@/api/user'
 

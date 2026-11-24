@@ -17,7 +17,7 @@ const user = {
   },
   actions: {
     getUserInfo({ commit, state }) {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         getCurrentUserInfo().then(response => {
           const result = response.data;
           const routers = result.data.menus;
@@ -26,7 +26,7 @@ const user = {
           state.basicInfo = Object.assign(state.basicInfo || {}, result.data);
           resolve()
         }).catch(error => {
-          console.log(error)
+          reject(error)
         })
       })
     },

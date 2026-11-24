@@ -47,7 +47,7 @@
 import { reactive, watch, onMounted } from "vue";
 import type { MenuProps } from "ant-design-vue";
 import { useRouter, useRoute } from "vue-router";
-import storage from 'store'
+import storage from '@/auth/storage'
 import store from '@/store'
 import * as icons from '@ant-design/icons-vue';
 import { h } from 'vue'
@@ -80,8 +80,7 @@ const dropDownClick: MenuProps["onClick"] = ({ key }) => {
   } else if (key == 3) {
     router.push('/company-profile')
   } else {
-    storage.remove('Access-Token');
-    storage.remove('Refresh-Token');
+    storage.endSession();
     store.dispatch('clearUserInfo').then(() => {
       router.push('/login');
     })
@@ -94,7 +93,8 @@ const handleClick: MenuProps['onClick'] = (menuInfo: any) => {
 }
 
 watch(() => route.path, (newPath) => {
-  const routePath = store.state.user.routeList.map(item => item.route_path);
+  const routePath = ['/chat', ...store.state.user.routeList.map(item => item.route_path)];
+  menuState.selectedKeys = [newPath];
   if (!routePath.includes(newPath)) {
     menuState.openKeys = [];
     menuState.selectedKeys = [];
@@ -104,7 +104,10 @@ watch(() => route.path, (newPath) => {
 onMounted(() => {
   const menuTree = listToTree(store.state.user.routeList);
   let userMenus = menuGenerator(menuTree);
-  menuState.menus = userMenus;
+  menuState.menus = [
+    { key: '/chat', title: '员工聊天', label: '员工聊天', icon: () => h(icons.MessageOutlined) },
+    ...userMenus
+  ];
 })
 
 let currentParentPath = '';

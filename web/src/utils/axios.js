@@ -1,88 +1,102 @@
 import axios from 'axios'
-import storage from 'store'
+import storage from '@/auth/storage'
 import router from '@/router'
-import { getNewToken } from '@/api/auth.js'
-import { save_token } from "./util.js"
+import store from '@/store'
+import { save_token } from './util.js'
 import notification from 'ant-design-vue/es/notification'
 
-// 创建 axios 实例
-const request = axios.create({
-  timeout: 10000 // 请求超时时间
-})
+const request = axios.create({ timeout: 10000 })
+const refreshRequest = axios.create({ timeout: 10000 })
+let refreshState
 
-// 异常拦截处理器
-const errorHandler = async (error) => {
-  if (!error.response) {
-    return Promise.reject(error)
-  }
-
-  const data = error.response.data
-  // 从 localstorage 获取 access_token
-  const access_token = storage.get('Access-Token')
-
-  if (data.code === 401) {
-    if (!access_token) {
-      notification.error({
-        message: '错误',
-        description: data.message
-      })
-      router.push('/login')
-      return Promise.reject(error)
-    }
-
-    const refresh_token = storage.get('Refresh-Token')
-    storage.remove('Access-Token');
-    storage.remove('Refresh-Token');
-
-    return getNewToken({ refresh_token: refresh_token }).then(response => {
-      const result = response.data;
-      if (result.code === 200) {
-        save_token(result.data.access_token, result.data.refresh_token, result.data.expires_in)
-        return request(error.response.config).then(response => response)
-      }
-
-      notification.error({
-        message: '错误',
-        description: result.message
-      })
-      router.push('/login')
-      return Promise.reject(error)
-    })
-    .catch(error => {
-      notification.error({
-        message: '错误',
-        description: data.message
-      })
-      return Promise.reject(error)
-    });
-  } else {
-    notification.error({
-      message: '错误',
-      description: data.message
-    })
-    return Promise.reject(error)
-  }
+function sessionChangedError() {
+  const error = new Error('登录账号已更改')
+  error.code = 'AUTH_SESSION_CHANGED'
+  return error
 }
 
-// 请求拦截器
-request.interceptors.request.use(config => {
-  const token = storage.get('Access-Token')
-  // 如果 token 存在
-  // 让每个请求携带自定义 token 请根据实际情况自行修改
-  if (token) {
-    config.headers['Authorization'] = 'Bearer ' + token
-  }
-  return config
-}, errorHandler)
+function assertCurrentSession(config) {
+  if (config && config.authSessionId !== storage.sessionId()) throw sessionChangedError()
+}
 
-// 响应拦截器
-request.interceptors.response.use(response => {
-  if (response.data.code !== 200) {
-    notification.error({
-      message: '错误',
-      description: response.data.message
+function clearSession(sessionId) {
+  if (sessionId !== storage.sessionId()) return
+  storage.endSession()
+  store.dispatch('clearUserInfo')
+  router.push('/login')
+}
+
+function refreshSession(sessionId) {
+  if (!refreshState || refreshState.sessionId !== sessionId) {
+    const refreshToken = storage.get('Refresh-Token')
+    const state = { sessionId }
+    refreshState = state
+    state.promise = refreshRequest.post('/api/system/auth/token/refresh', {
+      refresh_token: refreshToken
+    }).then(response => {
+      if (storage.sessionId() !== sessionId || storage.get('Refresh-Token') !== refreshToken) {
+        throw sessionChangedError()
+      }
+      if (response.data.code !== 200) {
+        throw new Error(response.data.message || '登录已过期')
+      }
+      const tokens = response.data.data
+      save_token(tokens.access_token, tokens.refresh_token, tokens.expires_in)
+      return tokens.access_token
+    }).catch(error => {
+      if (storage.sessionId() !== sessionId) throw sessionChangedError()
+      if (storage.get('Refresh-Token') === refreshToken) clearSession(sessionId)
+      throw error
+    }).finally(() => {
+      if (refreshState === state) refreshState = undefined
     })
-    return Promise.reject(response)
+  }
+  return refreshState.promise
+}
+
+async function errorHandler(error) {
+  const response = error.response
+  const config = error.config || response?.config
+  assertCurrentSession(config)
+  if (!response) throw error
+  const data = response.data
+  const isLogin = config?.url === '/api/system/auth/login'
+  const unauthorized = response.status === 401 || data?.code === 401
+
+  if (unauthorized && !isLogin) {
+    if (!config) throw error
+    if (config.authRetried || !storage.get('Refresh-Token')) {
+      clearSession(config.authSessionId)
+      throw error
+    }
+    config.authRetried = true
+    const sentToken = config.headers?.Authorization
+    const currentToken = storage.get('Access-Token')
+    // Another completed refresh may already have replaced this request's token.
+    if (!currentToken || sentToken === 'Bearer ' + currentToken) {
+      await refreshSession(config.authSessionId)
+    }
+    assertCurrentSession(config)
+    return request(config)
+  }
+
+  if (!config?.silent) notification.error({ message: '错误', description: data?.message || '请求失败' })
+  throw error
+}
+
+request.interceptors.request.use(config => {
+  if (config.authSessionId === undefined) config.authSessionId = storage.sessionId()
+  assertCurrentSession(config)
+  const token = storage.get('Access-Token')
+  if (token) config.headers.Authorization = 'Bearer ' + token
+  else delete config.headers.Authorization
+  return config
+})
+
+request.interceptors.response.use(response => {
+  assertCurrentSession(response.config)
+  if (response.data.code !== 200) {
+    return errorHandler({ response, config: response.config })
   }
   return response
 }, errorHandler)

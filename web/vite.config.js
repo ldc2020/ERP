@@ -6,7 +6,13 @@ import { resolve } from "node:path"
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd());
   return {
-    plugins: [vue()],
+    plugins: [vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: tag => ['vue-advanced-chat', 'emoji-picker'].includes(tag)
+        }
+      }
+    })],
     server:{
       host: '127.0.0.1',
       port: 5180,

@@ -10,6 +10,7 @@ from app.core.security import get_password_hash
 from app.models import system
 from app.models.base import Model
 from app.models.company import CompanyProfile
+from app.modules.chat.models import ChatConversation, ChatMessage
 
 
 class InitializeData:
@@ -37,7 +38,9 @@ class InitializeData:
                 connection.execute(text("SELECT pg_advisory_xact_lock(39571202)"))
                 Model.metadata.create_all(
                     connection,
-                    tables=[model.__table__ for model in self.SEED_MODELS] + [CompanyProfile.__table__],
+                    tables=[model.__table__ for model in self.SEED_MODELS] + [
+                        CompanyProfile.__table__, ChatConversation.__table__, ChatMessage.__table__,
+                    ],
                 )
 
                 with Session(bind=connection) as session:

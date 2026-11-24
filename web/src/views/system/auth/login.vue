@@ -132,7 +132,7 @@ const onFinish = (values: loginFormType) => {
   login({ ...values, captcha_key: captchaState.key }).then(response => {
     let result = response.data;
     if (result.code === 200) {
-      save_token(result.data.access_token, result.data.refresh_token, result.data.expires_in)
+      save_token(result.data.access_token, result.data.refresh_token, result.data.expires_in, { newSession: true })
       loginFlag.value = false;
       router.push('/');
     } else {

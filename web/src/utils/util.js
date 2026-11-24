@@ -1,4 +1,4 @@
-import storage from 'store'
+import storage from '@/auth/storage'
 
 export function timeFix () {
   const time = new Date()
@@ -72,8 +72,9 @@ export function getRangeDate (startDate, endDate) {
   return targetArr;
 }
 
-export function save_token (access_token, refresh_token, expires_in) {
-  storage.set('Access-Token', access_token, new Date().getTime() + expires_in)
+export function save_token (access_token, refresh_token, expires_in, { newSession = false } = {}) {
+  if (newSession) storage.startSession()
+  storage.set('Access-Token', access_token)
   storage.set('Refresh-Token', refresh_token)
 }
 

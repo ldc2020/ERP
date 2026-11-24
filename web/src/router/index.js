@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import BasicLayout from '@/layouts/basicLayout.vue'
 import Login from '@/views/system/auth/login.vue'
-import storage from 'store'
+import storage from '@/auth/storage'
 import store from '@/store'
 import { generator } from './generateRouter'
 import { listToTree } from '@/utils/util'
@@ -15,9 +15,15 @@ const routes = [
 const rootRouter = {
   path: '/',
   name: 'Index',
-  redirect: '/dashboard/workplace',
+  redirect: '/chat',
   component: BasicLayout,
   children: [
+    {
+      path: '/chat',
+      name: 'EmployeeChat',
+      meta: { title: '员工聊天' },
+      component: () => import('../modules/chat/ChatPage.vue')
+    },
     {
       path: '/company-profile',
       name: 'CompanyProfile',
@@ -35,6 +41,7 @@ const rootRouter = {
     }
   ]
 }
+const staticChildren = [...rootRouter.children]
 
 const router = createRouter({
   history: createWebHistory(),
@@ -52,7 +59,7 @@ router.beforeEach(to => {
     return store.dispatch('getUserInfo').then(() => {
       const routersTree = listToTree(store.state.user.routeList);
       const routerMap = generator(routersTree)
-      rootRouter.children = [ ...rootRouter.children, ...routerMap ];
+      rootRouter.children = [ ...staticChildren, ...routerMap ];
       router.addRoute(rootRouter)
       return to.fullPath
     })
