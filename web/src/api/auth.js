@@ -25,3 +25,7 @@ export function getCaptcha () {
     method: 'post',
   })
 }
+
+export function getLoginConfig () {
+  return request.get('/api/system/auth/config')
+}

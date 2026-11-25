@@ -35,10 +35,10 @@
                   </a-input-password>
                 </a-form-item>
 
-                <a-form-item name="captcha" :rules="[{ required: captchaState.enable, message: '验证码是必填项！' }]">
+                <a-form-item v-if="captchaState.enable" name="captcha" :rules="[{ required: captchaState.enable, message: '验证码是必填项！' }]">
                   <a-input v-model:value="loginForm.captcha" placeholder="验证码">
                     <template #addonAfter>
-                      <div class="login-form-captcha" @click="requestCaptcha">
+                      <div class="login-form-captcha" @click="loadLoginConfig">
                         <a-image :src="captchaState.img_base" :preview="false" />
                       </div>
                     </template>
@@ -52,12 +52,16 @@
                   <a class="login-form-forgot">忘记密码 ?</a>
                 </a-form-item>
 
+                <a-alert v-if="configError" type="error" :message="configError" show-icon>
+                  <template #action><a-button type="link" @click="loadLoginConfig">重试</a-button></template>
+                </a-alert>
                 <a-form-item>
                   <a-button
                     type="primary"
                     html-type="submit"
                     class="login-form-button"
                     :loading="loginFlag"
+                    :disabled="!configReady"
                   >
                     登录
                   </a-button>
@@ -92,12 +96,14 @@ import type { CSSProperties } from "vue";
 import { ref, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { UserOutlined, LockOutlined, GithubOutlined } from '@ant-design/icons-vue';
-import { login, getCaptcha } from "@/api/auth"
+import { login, getCaptcha, getLoginConfig } from "@/api/auth"
 import type { loginFormType, captchaStateType } from './types';
 import { save_token } from "@/utils/util"
 
 const router = useRouter()
 const loginFlag = ref(false);
+const configReady = ref(false);
+const configError = ref("");
 
 const contentStyle: CSSProperties = {
   minHeight: 850,
@@ -121,12 +127,13 @@ const loginForm = reactive<loginFormType>({
 
 
 const captchaState = reactive<captchaStateType>({
-  enable: true,
+  enable: false,
   key: "",
   img_base: ""
 });
 
 const onFinish = (values: loginFormType) => {
+  if (!configReady.value) return;
   loginFlag.value = true;
 
   login({ ...values, captcha_key: captchaState.key }).then(response => {
@@ -140,28 +147,36 @@ const onFinish = (values: loginFormType) => {
     }
   }).catch(error => {
     if ((error.response?.data ?? error.data)?.code === 410) {
-      requestCaptcha();
+      loadLoginConfig();
     }
     loginFlag.value = false;
   })
 };
 
-const requestCaptcha = () => {
-  getCaptcha().then(response => {
-    let result = response.data;
-    if (result.code === 200) {
-      captchaState.key = result.data.key;
-      captchaState.img_base = result.data.img_base;
-    } else {
-      captchaState.enable = false;
-    }
-  }).catch(error => {
-    console.log(error);
-    captchaState.enable = false;
-  })
-}
+const requestCaptcha = async () => {
+  if (!captchaState.enable) return;
+  const response = await getCaptcha();
+  captchaState.key = response.data.data.key;
+  captchaState.img_base = response.data.data.img_base;
+};
 
-onMounted(() => requestCaptcha());
+const loadLoginConfig = async () => {
+  configReady.value = false;
+  configError.value = "";
+  try {
+    const response = await getLoginConfig();
+    captchaState.enable = response.data.data.captcha_enabled;
+    captchaState.key = "";
+    captchaState.img_base = "";
+    loginForm.captcha = "";
+    if (captchaState.enable) await requestCaptcha();
+    configReady.value = true;
+  } catch {
+    configError.value = "登录配置加载失败，请重试";
+  }
+};
+
+onMounted(loadLoginConfig);
 </script>
 
 <style lang="scss" scoped>

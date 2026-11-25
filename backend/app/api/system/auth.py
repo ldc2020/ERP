@@ -18,6 +18,11 @@ from redis.asyncio import Redis
 router = APIRouter(route_class=OperationLogRoute)
 
 
+@router.get("/config", summary="查询登录配置")
+async def get_login_config() -> JSONResponse:
+    return SuccessResponse({"captcha_enabled": settings.CAPTCHA_ENABLE})
+
+
 @router.post("/login", response_model=JWTOut, summary="登录", description="登录")
 async def login_for_access_token(
         request: Request,

@@ -31,6 +31,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${ERP_SECRET_KEY:?Set ERP_SECRET_KEY to a unique signing key}
       DEBUG: "false"
+      CAPTCHA_ENABLE: ${CAPTCHA_ENABLE:-false}
       ALLOW_ORIGINS: '[]'
       ALLOW_CREDENTIALS: "false"
     volumes:

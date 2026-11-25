@@ -6,7 +6,7 @@ runtime_dir="$project_dir/.deploy/local-preview"
 export SQL_DB_URL=postgresql+asyncpg://postgres@127.0.0.1:55432/erp_local_preview
 export REDIS_URL=redis://127.0.0.1:56379/9
 export SECRET_KEY="$(cat "$runtime_dir/signing-key")"
-export CAPTCHA_ENABLE=false SERVER_HOST=127.0.0.1 SERVER_PORT=8080
+export CAPTCHA_ENABLE="${CAPTCHA_ENABLE:-false}" SERVER_HOST=127.0.0.1 SERVER_PORT=8080
 export ADMIN_USERNAME=admin ADMIN_PASSWORD="$(cat "$runtime_dir/admin-password")"
 "$runtime_dir/venv/bin/python" - <<'PYCODE'
 import asyncio, asyncpg
